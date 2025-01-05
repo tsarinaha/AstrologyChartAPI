@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 import logging
 
-# ✅ Initialize FastAPI app at the top
+# ✅ Initialize FastAPI app
 app = FastAPI()
 
 # ✅ Set up logging
@@ -14,16 +14,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ✅ Set the path to the Swiss Ephemeris files
-swe.set_ephe_path("ephemeris")
-logger.info("Ephemeris path set to: 'ephemeris'")
+ephemeris_path = os.path.join(os.getcwd(), "ephemeris")
+swe.set_ephe_path(ephemeris_path)
+logger.info(f"Ephemeris path set to: {ephemeris_path}")
 
-# Zodiac signs in Arabic
+# ✅ Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
     "الحمل", "الثور", "الجوزاء", "السرطان", "الأسد", "العذراء",
     "الميزان", "العقرب", "القوس", "الجدي", "الدلو", "الحوت"
 ]
 
-# Planets in Arabic
+# ✅ Planets in Arabic
 PLANETS_ARABIC = {
     swe.SUN: "الشمس",
     swe.MOON: "القمر",
@@ -37,38 +38,40 @@ PLANETS_ARABIC = {
     swe.PLUTO: "بلوتو"
 }
 
-# OpenCage API for geocoding
+# ✅ OpenCage API for geocoding
 OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
 
-# Base model for input validation
+# ✅ Base model for input validation
 class BirthDetails(BaseModel):
     name: str
     birth_date: str
     birth_time: str
     location: str
 
-# Helper to determine zodiac sign
+# ✅ Helper to determine zodiac sign
 def get_arabic_zodiac_sign(degree):
     return ARABIC_ZODIAC_SIGNS[int(degree // 30)]
 
-# Function to calculate planetary positions
+# ✅ Function to calculate planetary positions
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
-        ret_code, pos = swe.calc_ut(julian_day, planet)
+        try:
+            ret_code, pos = swe.calc_ut(julian_day, planet)
+            if ret_code < 0:
+                raise ValueError(f"Calculation error for {arabic_name}")
 
-        # Ensure pos is a list before accessing pos[0]
-        if not isinstance(pos, (list, tuple)):
-            raise ValueError(f"Error calculating position for {arabic_name}")
-
-        zodiac_sign = get_arabic_zodiac_sign(pos[0])
-        planets[arabic_name] = {
-            "position": round(pos[0], 2),
-            "zodiac_sign": zodiac_sign
-        }
+            zodiac_sign = get_arabic_zodiac_sign(pos[0])
+            planets[arabic_name] = {
+                "position": round(pos[0], 2),
+                "zodiac_sign": zodiac_sign
+            }
+        except Exception as e:
+            logger.error(f"Error calculating position for {arabic_name}: {e}")
+            planets[arabic_name] = {"error": "Calculation error"}
     return planets
 
-# Geocoding function
+# ✅ Geocoding function
 def get_coordinates(location):
     try:
         response = requests.get(
@@ -85,7 +88,7 @@ def get_coordinates(location):
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Error fetching location data: {str(e)}")
 
-# API endpoint
+# ✅ API endpoint
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
     try:
@@ -127,7 +130,7 @@ def calculate_chart(details: BirthDetails):
         logger.error(f"Unexpected Error: {str(e)}")
         return {"error": "Internal Server Error", "details": str(e)}
 
-# Run the server
+# ✅ Run the server
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
