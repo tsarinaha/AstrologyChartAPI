@@ -88,22 +88,26 @@ def calculate_chart(details: BirthDetails):
         # Log the incoming request
         logger.info(f"Received request: {details}")
 
-        # Step 1: Get coordinates from location
-        latitude, longitude = get_coordinates(details.location)
-
-        # Step 2: Convert birth date and time to Julian Day
+        # Step 1: Validate date
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
+        if birth_datetime.year < 1800 or birth_datetime.year > 2400:
+            return {"error": "Date out of range. Please provide a date between 1800 and 2400."}
+
+        # Step 2: Get coordinates from location
+        latitude, longitude = get_coordinates(details.location)
+
+        # Step 3: Convert birth date and time to Julian Day
         julian_day = swe.julday(
             birth_datetime.year, birth_datetime.month, birth_datetime.day,
             birth_datetime.hour + birth_datetime.minute / 60.0
         )
 
-        # Step 3: Calculate all planetary positions
+        # Step 4: Calculate all planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
 
-        # Step 4: Return the chart data
+        # Step 5: Return the chart data
         return {
             "name": details.name,
             "chart_in_arabic": planets_chart,
