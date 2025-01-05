@@ -13,6 +13,9 @@ app = FastAPI()
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+swe.set_ephe_path("ephemeris")
+logger.info(f"Ephemeris path set to: {swe.get_ephe_path()}")
+
 
 # ✅ Set the path to the Swiss Ephemeris files
 swe.set_ephe_path("ephemeris")  # <-- Add this line to set the path to the ephemeris files
