@@ -48,4 +48,5 @@ def get_arabic_zodiac_sign(degree):
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
-        _, pos = swe.calc_ut(julian
+# Calculate all planetary positions
+planets_chart = calculate_planetary_positions(julian_day)
