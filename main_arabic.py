@@ -4,9 +4,14 @@ import swisseph as swe
 import requests
 import os
 from datetime import datetime
+import logging
 
 # Initialize FastAPI app
 app = FastAPI()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
@@ -77,30 +82,39 @@ def get_coordinates(location):
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
     try:
-        latitude, longitude = get_coordinates(details.location)
-    except ValueError as e:
-        return {"error": str(e)}
+        # Log the incoming request
+        logger.info(f"Received request: {details}")
 
-    try:
+        # Step 1: Get coordinates from location
+        latitude, longitude = get_coordinates(details.location)
+
+        # Step 2: Convert birth date and time to Julian Day
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
-    except ValueError:
-        return {"error": "Invalid date or time format. Please use YYYY-MM-DD for date and HH:MM for time."}
+        julian_day = swe.julday(
+            birth_datetime.year, birth_datetime.month, birth_datetime.day,
+            birth_datetime.hour + birth_datetime.minute / 60.0
+        )
 
-    julian_day = swe.julday(
-        birth_datetime.year, birth_datetime.month, birth_datetime.day,
-        birth_datetime.hour + birth_datetime.minute / 60.0
-    )
+        # Step 3: Calculate all planetary positions
+        planets_chart = calculate_planetary_positions(julian_day)
 
-    # Calculate all planetary positions
-    planets_chart = calculate_planetary_positions(julian_day)
+        # Step 4: Return the chart data
+        return {
+            "name": details.name,
+            "chart_in_arabic": planets_chart,
+            "location": {"latitude": latitude, "longitude": longitude}
+        }
 
-    return {
-        "name": details.name,
-        "chart_in_arabic": planets_chart,
-        "location": {"latitude": latitude, "longitude": longitude}
-    }
+    except ValueError as e:
+        # Handle specific value errors
+        logger.error(f"ValueError: {str(e)}")
+        return {"error": str(e)}
+    except Exception as e:
+        # Catch any other unexpected errors
+        logger.error(f"Unexpected Error: {str(e)}")
+        return {"error": "Internal Server Error", "details": str(e)}
 
 # Run the server
 if __name__ == "__main__":
