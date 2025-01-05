@@ -29,7 +29,7 @@ PLANETS_ARABIC = {
 }
 
 # OpenCage API for geocoding (replace with your own API key)
-OPENCAGE_API_KEY = "604e0439ff254a749ac2b4da5d87f078"
+OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY")
 
 # Base model for input validation
 class BirthDetails(BaseModel):
@@ -56,16 +56,21 @@ def calculate_planetary_positions(julian_day):
 
 # Geocoding function to get latitude and longitude from location
 def get_coordinates(location):
-    response = requests.get(
-        f"https://api.opencagedata.com/geocode/v1/json?q={location}&language=ar&key={OPENCAGE_API_KEY}"
-    )
-    data = response.json()
-    if data['results']:
-        lat = data['results'][0]['geometry']['lat']
-        lng = data['results'][0]['geometry']['lng']
-        return lat, lng
-    else:
-        raise ValueError("Location not found")
+    try:
+        response = requests.get(
+            f"https://api.opencagedata.com/geocode/v1/json?q={location}&language=ar&key={OPENCAGE_API_KEY}"
+        )
+        response.raise_for_status()  # Raise an error for bad HTTP status codes
+        data = response.json()
+        if data['results']:
+            lat = data['results'][0]['geometry']['lat']
+            lng = data['results'][0]['geometry']['lng']
+            return lat, lng
+        else:
+            raise ValueError("Location not found")
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"Error fetching location data: {str(e)}")
+
 
 # API endpoint to calculate chart
 @app.post("/calculate_chart/")
@@ -76,10 +81,15 @@ def calculate_chart(details: BirthDetails):
     except ValueError as e:
         return {"error": str(e)}
 
-    # Convert birth date and time to Julian Day
-    year, month, day = map(int, details.birth_date.split('-'))
-    hour, minute = map(int, details.birth_time.split(':'))
-    julian_day = swe.julday(year, month, day, hour + minute / 60.0)
+ from datetime import datetime
+
+# Convert birth date and time to Julian Day
+try:
+    birth_datetime = datetime.strptime(f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M")
+except ValueError:
+    return {"error": "Invalid date or time format. Please use YYYY-MM-DD for date and HH:MM for time."}
+
+julian_day = swe.julday(birth_datetime.year, birth_datetime.month, birth_datetime.day, birth_datetime.hour + birth_datetime.minute / 60.0)
 
     # Calculate all planetary positions
     planets_chart = calculate_planetary_positions(julian_day)
