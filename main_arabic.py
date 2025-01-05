@@ -52,8 +52,14 @@ def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
         ret_code, pos = swe.calc_ut(julian_day, planet)
+
+        # Check if the return code is a tuple or integer
+        if isinstance(ret_code, tuple):
+            ret_code = ret_code[0]
+
         if ret_code < 0:
             raise ValueError(f"Error calculating position for {arabic_name}")
+
         zodiac_sign = get_arabic_zodiac_sign(pos[0])
         planets[arabic_name] = {
             "position": round(pos[0], 2),
