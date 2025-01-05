@@ -13,6 +13,9 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ✅ Set the path to the Swiss Ephemeris files
+swe.set_ephe_path("ephemeris")  # <-- Add this line to set the path to the ephemeris files
+
 # Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
     "الحمل", "الثور", "الجوزاء", "السرطان", "الأسد", "العذراء",
