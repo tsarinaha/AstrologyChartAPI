@@ -6,19 +6,13 @@ import os
 from datetime import datetime
 import logging
 
-logger.info(f"Ephemeris path set to: {swe.get_ephe_path()}")
-# Initialize FastAPI app
-app = FastAPI()
-
-# Set up logging
+# ✅ Set up logging before using it
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-swe.set_ephe_path("ephemeris")
-logger.info(f"Ephemeris path set to: {swe.get_ephe_path()}")
-
 
 # ✅ Set the path to the Swiss Ephemeris files
-swe.set_ephe_path("ephemeris")  # <-- Add this line to set the path to the ephemeris files
+swe.set_ephe_path("ephemeris")
+logger.info(f"Ephemeris path set to: {swe.get_ephe_path()}")
 
 # Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
