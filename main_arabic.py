@@ -53,23 +53,18 @@ def calculate_planetary_positions(julian_day):
     for planet, arabic_name in PLANETS_ARABIC.items():
         ret_code, pos = swe.calc_ut(julian_day, planet)
 
-        # ✅ Check if ret_code indicates an error
-        if ret_code < 0:
+        # Check if the result is valid and access the first element of pos
+        if ret_code < 0 or not isinstance(pos, (list, tuple)) or len(pos) == 0:
             planets[arabic_name] = {"error": "Calculation error"}
             continue
 
-        # ✅ Extract the longitude from the position tuple
-        longitude = pos[0]
-
-        # ✅ Determine the zodiac sign
-        zodiac_sign = get_arabic_zodiac_sign(longitude)
-
-        # ✅ Store the planet's position and zodiac sign
+        zodiac_sign = get_arabic_zodiac_sign(pos[0])  # Use pos[0] for the degree
         planets[arabic_name] = {
-            "position": round(longitude, 2),
+            "position": round(pos[0], 2),
             "zodiac_sign": zodiac_sign
         }
     return planets
+
 
 # ✅ Geocoding function
 def get_coordinates(location):
