@@ -6,6 +6,7 @@ import os
 from datetime import datetime
 import logging
 
+logger.info(f"Ephemeris path set to: {swe.get_ephe_path()}")
 # Initialize FastAPI app
 app = FastAPI()
 
