@@ -6,17 +6,12 @@ import os
 from datetime import datetime
 import logging
 
-# ✅ Initialize FastAPI app
-app = FastAPI()
-
 # ✅ Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ✅ Set the path to the Swiss Ephemeris files
-ephemeris_path = os.path.join(os.getcwd(), "ephemeris")
-swe.set_ephe_path(ephemeris_path)
-logger.info(f"Ephemeris path set to: {ephemeris_path}")
+swe.set_ephe_path("ephemeris")
 
 # ✅ Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
@@ -56,19 +51,24 @@ def get_arabic_zodiac_sign(degree):
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
-        try:
-            ret_code, pos = swe.calc_ut(julian_day, planet)
-            if ret_code < 0:
-                raise ValueError(f"Calculation error for {arabic_name}")
+        ret_code, pos = swe.calc_ut(julian_day, planet)
 
-            zodiac_sign = get_arabic_zodiac_sign(pos[0])
-            planets[arabic_name] = {
-                "position": round(pos[0], 2),
-                "zodiac_sign": zodiac_sign
-            }
-        except Exception as e:
-            logger.error(f"Error calculating position for {arabic_name}: {e}")
+        # ✅ Check if ret_code indicates an error
+        if ret_code < 0:
             planets[arabic_name] = {"error": "Calculation error"}
+            continue
+
+        # ✅ Extract the longitude from the position tuple
+        longitude = pos[0]
+
+        # ✅ Determine the zodiac sign
+        zodiac_sign = get_arabic_zodiac_sign(longitude)
+
+        # ✅ Store the planet's position and zodiac sign
+        planets[arabic_name] = {
+            "position": round(longitude, 2),
+            "zodiac_sign": zodiac_sign
+        }
     return planets
 
 # ✅ Geocoding function
@@ -89,32 +89,34 @@ def get_coordinates(location):
         raise ValueError(f"Error fetching location data: {str(e)}")
 
 # ✅ API endpoint
+app = FastAPI()
+
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
     try:
-        # Log the incoming request
+        # ✅ Log the incoming request
         logger.info(f"Received request: {details}")
 
-        # Step 1: Validate date
+        # ✅ Step 1: Validate date
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
         if birth_datetime.year < 1800 or birth_datetime.year > 2400:
             return {"error": "Date out of range. Please provide a date between 1800 and 2400."}
 
-        # Step 2: Get coordinates from location
+        # ✅ Step 2: Get coordinates from location
         latitude, longitude = get_coordinates(details.location)
 
-        # Step 3: Convert birth date and time to Julian Day
+        # ✅ Step 3: Convert birth date and time to Julian Day
         julian_day = swe.julday(
             birth_datetime.year, birth_datetime.month, birth_datetime.day,
             birth_datetime.hour + birth_datetime.minute / 60.0
         )
 
-        # Step 4: Calculate all planetary positions
+        # ✅ Step 4: Calculate all planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
 
-        # Step 5: Return the chart data
+        # ✅ Step 5: Return the chart data
         return {
             "name": details.name,
             "chart_in_arabic": planets_chart,
@@ -122,11 +124,11 @@ def calculate_chart(details: BirthDetails):
         }
 
     except ValueError as e:
-        # Handle specific value errors
+        # ✅ Handle specific value errors
         logger.error(f"ValueError: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
-        # Catch any other unexpected errors
+        # ✅ Catch any other unexpected errors
         logger.error(f"Unexpected Error: {str(e)}")
         return {"error": "Internal Server Error", "details": str(e)}
 
