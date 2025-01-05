@@ -29,7 +29,7 @@ PLANETS_ARABIC = {
 }
 
 # OpenCage API for geocoding (replace with your own API key)
-OPENCAGE_API_KEY = os.getenv("OPENCAGE_API_KEY", "your_api_key_here")
+OPENCAGE_API_KEY = "604e0439ff254a749ac2b4da5d87f078"
 
 # Base model for input validation
 class BirthDetails(BaseModel):
