@@ -1,4 +1,5 @@
-
 fastapi
 uvicorn
 pyswisseph
+requests
+pydantic
