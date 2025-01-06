@@ -108,6 +108,26 @@ def get_coordinates(location):
 
 # ✅ API endpoint
 app = FastAPI()
+def calculate_ascendant(julian_day, latitude, longitude):
+    """
+    Calculate the Ascendant (Rising Sign) based on birth date, time, and location.
+    """
+    try:
+        # Call Swiss Ephemeris to calculate house cusps and Ascendant
+        houses, ascendant = swe.houses(julian_day, latitude, longitude, 'P')  # 'P' = Placidus house system
+        
+        # Log the Ascendant degree
+        logger.info(f"Ascendant degree: {ascendant}")
+
+        # Determine the zodiac sign of the Ascendant
+        ascendant_sign = get_arabic_zodiac_sign(ascendant)
+        return {
+            "degree": round(ascendant, 2),
+            "zodiac_sign": ascendant_sign
+        }
+    except Exception as e:
+        logger.error(f"Error calculating Ascendant: {str(e)}")
+        return {"error": "Could not calculate Ascendant"}
 
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
@@ -134,10 +154,14 @@ def calculate_chart(details: BirthDetails):
         # ✅ Step 4: Calculate all planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
 
-        # ✅ Step 5: Return the chart data
+        # ✅ Step 5: Calculate the Ascendant
+        ascendant = calculate_ascendant(julian_day, latitude, longitude)
+
+        # ✅ Step 6: Return the chart data
         return {
             "name": details.name,
             "chart_in_arabic": planets_chart,
+            "ascendant": ascendant,
             "location": {"latitude": latitude, "longitude": longitude}
         }
 
