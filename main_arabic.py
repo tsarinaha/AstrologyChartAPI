@@ -117,15 +117,16 @@ def calculate_ascendant(julian_day, latitude, longitude):
         logger.info(f"Calculating Ascendant: julian_day={julian_day}, latitude={latitude}, longitude={longitude}")
         
         # Call Swiss Ephemeris to calculate house cusps and Ascendant
-        houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')  # Note the 'b' for byte string
-        
-        # Log the Ascendant degree
-        logger.info(f"Ascendant degree: {ascendant}")
+        houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')  # 'P' = Placidus house system
+
+        # Extract the Ascendant degree (first value of ascendant tuple)
+        ascendant_degree = ascendant[0]
+        logger.info(f"Ascendant degree: {ascendant_degree}")
 
         # Determine the zodiac sign of the Ascendant
-        ascendant_sign = get_arabic_zodiac_sign(ascendant)
+        ascendant_sign = get_arabic_zodiac_sign(ascendant_degree)
         return {
-            "degree": round(ascendant, 2),
+            "degree": round(ascendant_degree, 2),
             "zodiac_sign": ascendant_sign
         }
     except Exception as e:
