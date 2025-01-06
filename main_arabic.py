@@ -113,6 +113,9 @@ def calculate_ascendant(julian_day, latitude, longitude):
     Calculate the Ascendant (Rising Sign) based on birth date, time, and location.
     """
     try:
+        # Log inputs for debugging
+        logger.info(f"Calculating Ascendant: julian_day={julian_day}, latitude={latitude}, longitude={longitude}")
+        
         # Call Swiss Ephemeris to calculate house cusps and Ascendant
         houses, ascendant = swe.houses(julian_day, latitude, longitude, 'P')  # 'P' = Placidus house system
         
