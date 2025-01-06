@@ -117,7 +117,7 @@ def calculate_ascendant(julian_day, latitude, longitude):
         logger.info(f"Calculating Ascendant: julian_day={julian_day}, latitude={latitude}, longitude={longitude}")
         
         # Call Swiss Ephemeris to calculate house cusps and Ascendant
-        houses, ascendant = swe.houses(julian_day, latitude, longitude, 'P')  # 'P' = Placidus house system
+        houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')  # Note the 'b' for byte string
         
         # Log the Ascendant degree
         logger.info(f"Ascendant degree: {ascendant}")
@@ -131,6 +131,7 @@ def calculate_ascendant(julian_day, latitude, longitude):
     except Exception as e:
         logger.error(f"Error calculating Ascendant: {str(e)}")
         return {"error": "Could not calculate Ascendant"}
+
 
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
