@@ -52,20 +52,20 @@ def get_arabic_zodiac_sign(degree):
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
-        # Call Swiss Ephemeris to calculate planetary positions
-        ret_code, pos = swe.calc_ut(julian_day, planet)
+        # Call Swiss Ephemeris for planetary position
+        pos, ret_code = swe.calc_ut(julian_day, planet)  # Swap ret_code and pos
         
         # Log the return values for debugging
         logger.info(f"Calculating position for {arabic_name}: ret_code={ret_code}, pos={pos}")
         
         # Handle invalid return codes
-        if ret_code < 0:  # ret_code should be >= 0 for success
+        if not isinstance(ret_code, int) or ret_code < 0:  # Ensure ret_code is an integer
             planets[arabic_name] = {"error": "Calculation error"}
             logger.error(f"Error calculating position for {arabic_name}: ret_code={ret_code}")
             continue
 
-        # Ensure `pos` is a list or tuple with at least one value
-        if not isinstance(pos, (list, tuple)) or len(pos) == 0:
+        # Handle invalid position data
+        if not isinstance(pos, (list, tuple)) or len(pos) == 0:  # Ensure pos is valid
             planets[arabic_name] = {"error": "Invalid position data"}
             logger.error(f"Invalid position data for {arabic_name}: pos={pos}")
             continue
