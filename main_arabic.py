@@ -6,12 +6,13 @@ import os
 from datetime import datetime
 import logging
 
-# ✅ Set up logging
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ✅ Set the path to the Swiss Ephemeris files
-swe.set_ephe_path("ephe")
+# Set the ephemeris path to the folder inside the cloned `swisseph` repo
+swe.set_ephe_path("swisseph/ephe")
+logger.info(f"Ephemeris path set to: swisseph/ephe")
 
 # ✅ Zodiac signs in Arabic
 ARABIC_ZODIAC_SIGNS = [
