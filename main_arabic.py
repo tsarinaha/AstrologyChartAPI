@@ -108,76 +108,97 @@ def get_coordinates(location):
 
 # ✅ API endpoint
 app = FastAPI()
-def calculate_ascendant(julian_day, latitude, longitude):
+def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     """
-    Calculate the Ascendant (Rising Sign) based on birth date, time, and location.
+    Calculate the Ascendant (Rising Sign) and the 12 house cusps.
     """
     try:
         # Log inputs for debugging
-        logger.info(f"Calculating Ascendant: julian_day={julian_day}, latitude={latitude}, longitude={longitude}")
+        logger.info(f"Calculating houses and Ascendant: julian_day={julian_day}, latitude={latitude}, longitude={longitude}")
         
         # Call Swiss Ephemeris to calculate house cusps and Ascendant
         houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')  # 'P' = Placidus house system
 
-        # Extract the Ascendant degree (first value of ascendant tuple)
+        # Log the house cusps
+        logger.info(f"House cusps: {houses}")
+
+        # Log the Ascendant degree
         ascendant_degree = ascendant[0]
         logger.info(f"Ascendant degree: {ascendant_degree}")
 
+        # Prepare house cusp data
+        houses_data = {}
+        for i in range(12):  # Loop through the 12 house cusps
+            house_degree = houses[i]  # Safely access house degree
+            zodiac_sign = get_arabic_zodiac_sign(house_degree)  # Get zodiac sign
+            houses_data[f"house_{i+1}"] = {
+                "degree": round(house_degree, 2),
+                "zodiac_sign": zodiac_sign
+            }
+
         # Determine the zodiac sign of the Ascendant
         ascendant_sign = get_arabic_zodiac_sign(ascendant_degree)
-        return {
+        ascendant_data = {
             "degree": round(ascendant_degree, 2),
             "zodiac_sign": ascendant_sign
         }
+
+        # Return the houses and Ascendant
+        return {
+            "houses": houses_data,
+            "ascendant": ascendant_data
+        }
+
     except Exception as e:
-        logger.error(f"Error calculating Ascendant: {str(e)}")
-        return {"error": "Could not calculate Ascendant"}
+        logger.error(f"Error calculating houses and Ascendant: {str(e)}")
+        return {"error": "Could not calculate houses and Ascendant"}
+
 
 
 @app.post("/calculate_chart/")
 def calculate_chart(details: BirthDetails):
     try:
-        # ✅ Log the incoming request
+        # Log the incoming request
         logger.info(f"Received request: {details}")
 
-        # ✅ Step 1: Validate date
+        # ✅ Step 1: Convert birth date and time to Julian Day
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
-        if birth_datetime.year < 1800 or birth_datetime.year > 2400:
-            return {"error": "Date out of range. Please provide a date between 1800 and 2400."}
-
-        # ✅ Step 2: Get coordinates from location
-        latitude, longitude = get_coordinates(details.location)
-
-        # ✅ Step 3: Convert birth date and time to Julian Day
         julian_day = swe.julday(
             birth_datetime.year, birth_datetime.month, birth_datetime.day,
             birth_datetime.hour + birth_datetime.minute / 60.0
         )
+        logger.info(f"Julian day calculated: {julian_day}")
 
-        # ✅ Step 4: Calculate all planetary positions
+        # ✅ Step 2: Get latitude and longitude from the location
+        latitude, longitude = get_coordinates(details.location)
+        logger.info(f"Location resolved: latitude={latitude}, longitude={longitude}")
+
+        # ✅ Step 3: Calculate all planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
 
-        # ✅ Step 5: Calculate the Ascendant
-        ascendant = calculate_ascendant(julian_day, latitude, longitude)
+        # ✅ Step 4: Calculate houses and Ascendant
+        houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
 
-        # ✅ Step 6: Return the chart data
+        # ✅ Step 5: Return the complete chart data
         return {
             "name": details.name,
             "chart_in_arabic": planets_chart,
-            "ascendant": ascendant,
+            "ascendant": houses_and_ascendant["ascendant"],  # Include Ascendant
+            "houses": houses_and_ascendant["houses"],        # Include house cusps
             "location": {"latitude": latitude, "longitude": longitude}
         }
 
     except ValueError as e:
-        # ✅ Handle specific value errors
+        # Handle specific value errors
         logger.error(f"ValueError: {str(e)}")
         return {"error": str(e)}
     except Exception as e:
-        # ✅ Catch any other unexpected errors
+        # Catch unexpected errors
         logger.error(f"Unexpected Error: {str(e)}")
         return {"error": "Internal Server Error", "details": str(e)}
+
 
 # ✅ Run the server
 if __name__ == "__main__":
