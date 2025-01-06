@@ -47,23 +47,35 @@ class BirthDetails(BaseModel):
 def get_arabic_zodiac_sign(degree):
     return ARABIC_ZODIAC_SIGNS[int(degree // 30)]
 
-# ✅ Function to calculate planetary positions
+# Function to calculate planetary positions
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
         ret_code, pos = swe.calc_ut(julian_day, planet)
-
-        # Check if the result is valid and access the first element of pos
-        if ret_code < 0 or not isinstance(pos, (list, tuple)) or len(pos) == 0:
+        
+        # Log return values for debugging
+        logger.info(f"Calculating position for {arabic_name}: ret_code={ret_code}, pos={pos}")
+        
+        # Validate return code and ensure `pos` is a list or tuple
+        if ret_code < 0 or not isinstance(pos, (list, tuple)):
             planets[arabic_name] = {"error": "Calculation error"}
+            logger.error(f"Error calculating position for {arabic_name}")
             continue
-
-        zodiac_sign = get_arabic_zodiac_sign(pos[0])  # Use pos[0] for the degree
-        planets[arabic_name] = {
-            "position": round(pos[0], 2),
-            "zodiac_sign": zodiac_sign
-        }
+        
+        # Safeguard to ensure `pos[0]` is used correctly
+        try:
+            degree = pos[0]  # The first element in `pos` is the degree
+            zodiac_sign = get_arabic_zodiac_sign(degree)
+            planets[arabic_name] = {
+                "position": round(degree, 2),
+                "zodiac_sign": zodiac_sign
+            }
+        except Exception as e:
+            planets[arabic_name] = {"error": str(e)}
+            logger.error(f"Exception for {arabic_name}: {str(e)}")
+    
     return planets
+
 
 
 # ✅ Geocoding function
