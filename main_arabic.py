@@ -51,30 +51,30 @@ def get_arabic_zodiac_sign(degree):
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
+        # Call Swiss Ephemeris for planetary position
         ret_code, pos = swe.calc_ut(julian_day, planet)
-        
-        # Log return values for debugging
-        logger.info(f"Calculating position for {arabic_name}: ret_code={ret_code}, pos={pos}")
-        
-        # Validate return code and ensure `pos` is a list or tuple
-        if ret_code < 0 or not isinstance(pos, (list, tuple)):
+
+        # Check if the calculation was successful
+        if ret_code < 0:
             planets[arabic_name] = {"error": "Calculation error"}
-            logger.error(f"Error calculating position for {arabic_name}")
+            continue  # Skip to the next planet
+
+        # Ensure `pos` is valid and contains at least one value
+        if not isinstance(pos, (list, tuple)) or len(pos) == 0:
+            planets[arabic_name] = {"error": "Invalid position data"}
             continue
-        
-        # Safeguard to ensure `pos[0]` is used correctly
+
+        # Extract zodiac sign
         try:
-            degree = pos[0]  # The first element in `pos` is the degree
-            zodiac_sign = get_arabic_zodiac_sign(degree)
+            zodiac_sign = get_arabic_zodiac_sign(pos[0])
             planets[arabic_name] = {
-                "position": round(degree, 2),
+                "position": round(pos[0], 2),
                 "zodiac_sign": zodiac_sign
             }
         except Exception as e:
-            planets[arabic_name] = {"error": str(e)}
-            logger.error(f"Exception for {arabic_name}: {str(e)}")
-    
+            planets[arabic_name] = {"error": f"Error processing position: {str(e)}"}
     return planets
+
 
 
 
