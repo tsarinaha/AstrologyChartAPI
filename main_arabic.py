@@ -52,30 +52,40 @@ def get_arabic_zodiac_sign(degree):
 def calculate_planetary_positions(julian_day):
     planets = {}
     for planet, arabic_name in PLANETS_ARABIC.items():
-        # Call Swiss Ephemeris for planetary position
+        # Call Swiss Ephemeris to calculate planetary positions
         ret_code, pos = swe.calc_ut(julian_day, planet)
-
-        # Check if the calculation was successful
-        if ret_code < 0:
+        
+        # Log the return values for debugging
+        logger.info(f"Calculating position for {arabic_name}: ret_code={ret_code}, pos={pos}")
+        
+        # Handle invalid return codes
+        if ret_code < 0:  # ret_code should be >= 0 for success
             planets[arabic_name] = {"error": "Calculation error"}
-            continue  # Skip to the next planet
-
-        # Ensure `pos` is valid and contains at least one value
-        if not isinstance(pos, (list, tuple)) or len(pos) == 0:
-            planets[arabic_name] = {"error": "Invalid position data"}
+            logger.error(f"Error calculating position for {arabic_name}: ret_code={ret_code}")
             continue
 
-        # Extract zodiac sign
+        # Ensure `pos` is a list or tuple with at least one value
+        if not isinstance(pos, (list, tuple)) or len(pos) == 0:
+            planets[arabic_name] = {"error": "Invalid position data"}
+            logger.error(f"Invalid position data for {arabic_name}: pos={pos}")
+            continue
+
         try:
-            zodiac_sign = get_arabic_zodiac_sign(pos[0])
+            # Safely extract the degree (first value in `pos`)
+            degree = pos[0]
+            logger.info(f"Degree for {arabic_name}: {degree}")
+            
+            # Get the zodiac sign based on the degree
+            zodiac_sign = get_arabic_zodiac_sign(degree)
             planets[arabic_name] = {
-                "position": round(pos[0], 2),
+                "position": round(degree, 2),
                 "zodiac_sign": zodiac_sign
             }
         except Exception as e:
+            # Catch unexpected errors in processing
             planets[arabic_name] = {"error": f"Error processing position: {str(e)}"}
+            logger.error(f"Exception for {arabic_name}: {str(e)}")
     return planets
-
 
 
 
