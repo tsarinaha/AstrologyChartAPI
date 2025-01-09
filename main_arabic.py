@@ -198,6 +198,24 @@ def calculate_chart(details: BirthDetails):
         # Catch unexpected errors
         logger.error(f"Unexpected Error: {str(e)}")
         return {"error": "Internal Server Error", "details": str(e)}
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# 🚨 Add the CORS Middleware here:
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://tsarinaha.github.io"],  # Replace with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.post("/calculate_chart/")
+async def calculate_chart(data: dict):
+    # Your API logic here
+    return {"message": "Chart calculated successfully", "data": data}
 
 
 # ✅ Run the server
