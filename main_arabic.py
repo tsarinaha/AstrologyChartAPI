@@ -159,32 +159,25 @@ app.add_middleware(
 # Endpoint to calculate the natal chart
 @app.post("/calculate_chart/")
 async def calculate_chart(details: BirthDetails):
-try:
-    logger.info(f"Received request: {details}")
-    birth_datetime = datetime.strptime(
-        f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
-    )
-    julian_day = swe.julday(
-        birth_datetime.year, birth_datetime.month, birth_datetime.day,
-        birth_datetime.hour + birth_datetime.minute / 60.0
-    )
-    latitude, longitude = get_coordinates(details.location)
-    planets_chart = calculate_planetary_positions(julian_day)
-    houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
-    aspects = calculate_aspects(planets_chart)
-    planet_house_positions = assign_planets_to_houses(planets_chart, houses_and_ascendant["houses"])
+    try:
+        logger.info(f"Received request: {details}")
+        birth_datetime = datetime.strptime(
+            f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
+        )
+        julian_day = swe.julday(
+            birth_datetime.year, birth_datetime.month, birth_datetime.day,
+            birth_datetime.hour + birth_datetime.minute / 60.0
+        )
+        latitude, longitude = get_coordinates(details.location)
+        planets_chart = calculate_planetary_positions(julian_day)
+        houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
+        aspects = calculate_aspects(planets_chart)
+        planet_house_positions = assign_planets_to_houses(planets_chart, houses_and_ascendant["houses"])
 
-    return {
-        "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
-        "cusps": [house["degree"] for house in houses_and_ascendant["houses"]]
-    }
-except ValueError as e:
-    logger.error(f"ValueError: {str(e)}")
-    return {"error": str(e)}
-except Exception as e:
-    logger.error(f"Unexpected Error: {str(e)}")
-    return {"error": "Internal Server Error", "details": str(e)}
-
+        return {
+            "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
+            "cusps": [house["degree"] for house in houses_and_ascendant["houses"]]
+        }
     except ValueError as e:
         logger.error(f"ValueError: {str(e)}")
         return {"error": str(e)}
