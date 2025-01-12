@@ -173,16 +173,10 @@ async def calculate_chart(details: BirthDetails):
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
         aspects = calculate_aspects(planets_chart)
         planet_house_positions = assign_planets_to_houses(planets_chart, houses_and_ascendant["houses"])
-
-        return {
-            "name": details.name,
-            "chart_in_arabic": planets_chart,
-            "ascendant": houses_and_ascendant["ascendant"],
-            "houses": houses_and_ascendant["houses"],
-            "planets_in_houses": planet_house_positions,
-            "aspects": aspects,
-            "location": {"latitude": latitude, "longitude": longitude}
-        }
+return {
+    "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
+    "cusps": [house["degree"] for house in houses_and_ascendant["houses"]]
+}
     except ValueError as e:
         logger.error(f"ValueError: {str(e)}")
         return {"error": str(e)}
