@@ -51,19 +51,20 @@ def get_arabic_zodiac_sign(degree):
 
 # Function to calculate planetary positions
 def calculate_planetary_positions(julian_day):
-    planets = {}
+    planets = []
     for planet, arabic_name in PLANETS_ARABIC.items():
         pos, ret_code = swe.calc_ut(julian_day, planet)
         if ret_code < 0:
             logger.error(f"Error calculating position for {arabic_name}")
-            planets[arabic_name] = {"error": "Calculation error"}
+            planets.append({"name": arabic_name, "error": "Calculation error"})
             continue
         degree = pos[0]
         zodiac_sign = get_arabic_zodiac_sign(degree)
-        planets[arabic_name] = {
+        planets.append({
+            "name": arabic_name,
             "position": round(degree, 2),
             "zodiac_sign": zodiac_sign
-        }
+        })
     return planets
 
 # Geocoding function
@@ -83,10 +84,13 @@ def get_coordinates(location):
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
-    houses_data = {f"house_{i+1}": {
-        "degree": round(houses[i], 2),
-        "zodiac_sign": get_arabic_zodiac_sign(houses[i])
-    } for i in range(12)}
+    houses_data = []
+    for i in range(12):
+        houses_data.append({
+            "house": i + 1,
+            "degree": round(houses[i], 2),
+            "zodiac_sign": get_arabic_zodiac_sign(houses[i])
+        })
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
     return {
         "houses": houses_data,
@@ -99,16 +103,16 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
 # Function to assign planets to houses
 def assign_planets_to_houses(planets, houses):
     planet_house_positions = {}
-    house_degrees = [houses[f"house_{i+1}"]["degree"] for i in range(12)]
-    for planet, planet_data in planets.items():
-        planet_degree = planet_data["position"]
+    house_degrees = [house["degree"] for house in houses]
+    for planet in planets:
+        planet_degree = planet["position"]
         for i in range(12):
             next_house_degree = house_degrees[(i + 1) % 12]
             if house_degrees[i] <= planet_degree < next_house_degree:
-                planet_house_positions[planet] = {
+                planet_house_positions[planet["name"]] = {
                     "house": i + 1,
                     "degree": planet_degree,
-                    "zodiac_sign": planet_data["zodiac_sign"]
+                    "zodiac_sign": planet["zodiac_sign"]
                 }
                 break
     return planet_house_positions
@@ -123,19 +127,18 @@ def calculate_aspects(planets):
         180: "Opposition"
     }
     aspects = []
-    planet_names = list(planets.keys())
-    for i in range(len(planet_names)):
-        for j in range(i + 1, len(planet_names)):
-            p1_name, p1_pos = planet_names[i], planets[planet_names[i]]["position"]
-            p2_name, p2_pos = planet_names[j], planets[planet_names[j]]["position"]
-            angle = abs(p1_pos - p2_pos) % 360
+    for i in range(len(planets)):
+        for j in range(i + 1, len(planets)):
+            p1 = planets[i]
+            p2 = planets[j]
+            angle = abs(p1["position"] - p2["position"]) % 360
             if angle > 180:
                 angle = 360 - angle
             for aspect_angle, aspect_name in aspect_types.items():
                 if abs(angle - aspect_angle) <= 5:
                     aspects.append({
-                        "from": p1_name,
-                        "to": p2_name,
+                        "from": p1["name"],
+                        "to": p2["name"],
                         "angle": angle,
                         "type": aspect_name
                     })
@@ -170,6 +173,7 @@ async def calculate_chart(details: BirthDetails):
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
         aspects = calculate_aspects(planets_chart)
         planet_house_positions = assign_planets_to_houses(planets_chart, houses_and_ascendant["houses"])
+
         return {
             "name": details.name,
             "chart_in_arabic": planets_chart,
