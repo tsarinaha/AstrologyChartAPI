@@ -86,22 +86,24 @@ def adjust_for_dst(birth_datetime, timezone_name):
         raise ValueError("Invalid timezone or location for DST adjustment")
 
 # Function to calculate planetary positions
-def calculate_planetary_positions(julian_day):
-    planets = []
-    for planet, arabic_name in PLANETS_ARABIC.items():
-        pos, ret_code = swe.calc_ut(julian_day, planet)
-        if ret_code < 0:
-            logger.error(f"Error calculating position for {arabic_name}")
-            planets.append({"name": arabic_name, "error": "Calculation error"})
-            continue
-        degree = pos[0]
-        zodiac_sign = get_arabic_zodiac_sign(degree)
-        planets.append({
-            "name": arabic_name,
-            "position": round(degree, 2),
-            "zodiac_sign": zodiac_sign
+def calculate_houses_and_ascendant(julian_day, latitude, longitude):
+    houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
+    houses_data = []
+    for i in range(12):
+        houses_data.append({
+            "house": i + 1,
+            "degree": round(houses[i], 2),
+            "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
-    return planets
+    ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
+    logger.info(f"Cusps: {houses}")  # Log the cusps for debugging
+    return {
+        "houses": houses_data,
+        "ascendant": {
+            "degree": round(ascendant[0], 2),
+            "zodiac_sign": ascendant_sign
+        }
+    }
 
 # FastAPI app
 app = FastAPI()
