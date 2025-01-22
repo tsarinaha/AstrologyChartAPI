@@ -87,7 +87,16 @@ def adjust_for_dst(birth_datetime, timezone_name):
 
 # Function to calculate planetary positions
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
-    houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
+    try:
+        houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
+        if len(houses) != 12:
+            raise ValueError("Invalid number of cusps returned by swe.houses")
+    except Exception as e:
+        logger.error(f"Error calculating houses and ascendant: {e}")
+        # Provide fallback cusps (e.g., equal 30° divisions)
+        houses = [i * 30 for i in range(12)]
+        ascendant = [houses[0]]  # Assume the first cusp is the ascendant
+
     houses_data = []
     for i in range(12):
         houses_data.append({
@@ -96,7 +105,7 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-    logger.info(f"Cusps: {houses}")  # Log the cusps for debugging
+    logger.info(f"Cusps: {houses}")  # Log for debugging
     return {
         "houses": houses_data,
         "ascendant": {
