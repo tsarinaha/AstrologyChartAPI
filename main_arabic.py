@@ -4,7 +4,8 @@ from pydantic import BaseModel
 import swisseph as swe
 import requests
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import pytz
 import logging
 
 # Set up logging
@@ -49,6 +50,46 @@ class BirthDetails(BaseModel):
 def get_arabic_zodiac_sign(degree):
     return ARABIC_ZODIAC_SIGNS[int(degree // 30)]
 
+# Geocoding function with Arabic support
+def get_coordinates(location):
+    response = requests.get(
+        "https://api.opencagedata.com/geocode/v1/json",
+        params={
+            "q": location,
+            "language": "ar",  # Arabic language support
+            "key": OPENCAGE_API_KEY
+        }
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    if data["results"]:
+        lat = data["results"][0]["geometry"]["lat"]
+        lon = data["results"][0]["geometry"]["lng"]
+        # Extract timezone if available
+        timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name", None)
+
+        if timezone is None:
+            raise ValueError("Timezone not found in geocoding data")
+
+        return lat, lon, timezone
+    else:
+        raise ValueError("Location not found")
+
+# Function to adjust for DST
+def adjust_for_dst(birth_datetime, timezone_name):
+    try:
+        tz = pytz.timezone(timezone_name)
+        # Localize the birth datetime
+        localized_time = tz.localize(birth_datetime, is_dst=None)
+        # Extract UTC offset in hours (including DST if applicable)
+        utc_offset = localized_time.utcoffset().total_seconds() / 3600.0
+        logger.info(f"Localized Time: {localized_time}, UTC Offset: {utc_offset}")
+        return localized_time, utc_offset
+    except Exception as e:
+        logger.error(f"Failed to adjust for DST: {e}")
+        raise ValueError("Invalid timezone or location for DST adjustment")
+
 # Function to calculate planetary positions
 def calculate_planetary_positions(julian_day):
     planets = []
@@ -66,20 +107,6 @@ def calculate_planetary_positions(julian_day):
             "zodiac_sign": zodiac_sign
         })
     return planets
-
-# Geocoding function
-def get_coordinates(location):
-    response = requests.get(
-        f"https://api.opencagedata.com/geocode/v1/json?q={location}&language=ar&key={OPENCAGE_API_KEY}"
-    )
-    response.raise_for_status()
-    data = response.json()
-    if data['results']:
-        lat = data['results'][0]['geometry']['lat']
-        lng = data['results'][0]['geometry']['lng']
-        return lat, lng
-    else:
-        raise ValueError("Location not found")
 
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
@@ -99,50 +126,6 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "zodiac_sign": ascendant_sign
         }
     }
-
-# Function to assign planets to houses
-def assign_planets_to_houses(planets, houses):
-    planet_house_positions = {}
-    house_degrees = [house["degree"] for house in houses]
-    for planet in planets:
-        planet_degree = planet["position"]
-        for i in range(12):
-            next_house_degree = house_degrees[(i + 1) % 12]
-            if house_degrees[i] <= planet_degree < next_house_degree:
-                planet_house_positions[planet["name"]] = {
-                    "house": i + 1,
-                    "degree": planet_degree,
-                    "zodiac_sign": planet["zodiac_sign"]
-                }
-                break
-    return planet_house_positions
-
-# Function to calculate aspects between planets
-def calculate_aspects(planets):
-    aspect_types = {
-        0: "Conjunction",
-        60: "Sextile",
-        90: "Square",
-        120: "Trine",
-        180: "Opposition"
-    }
-    aspects = []
-    for i in range(len(planets)):
-        for j in range(i + 1, len(planets)):
-            p1 = planets[i]
-            p2 = planets[j]
-            angle = abs(p1["position"] - p2["position"]) % 360
-            if angle > 180:
-                angle = 360 - angle
-            for aspect_angle, aspect_name in aspect_types.items():
-                if abs(angle - aspect_angle) <= 5:
-                    aspects.append({
-                        "from": p1["name"],
-                        "to": p2["name"],
-                        "angle": angle,
-                        "type": aspect_name
-                    })
-    return aspects
 
 # FastAPI app
 app = FastAPI()
@@ -187,38 +170,11 @@ async def calculate_chart(details: BirthDetails):
         # Calculate houses and Ascendant
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
 
-        # Generate table data
-        table_data = []
-
-        for planet in planets_chart:
-            table_data.append({
-                "type": "الكوكب",
-                "name": planet["name"],
-                "degree": f"{planet['position']:.2f}°",
-                "zodiac_sign": planet["zodiac_sign"]
-            })
-
-        for house in houses_and_ascendant["houses"]:
-            table_data.append({
-                "type": "بيت",
-                "name": f"بيت {house['house']}",
-                "degree": f"{house['degree']:.2f}°",
-                "zodiac_sign": house["zodiac_sign"]
-            })
-
-        ascendant = houses_and_ascendant["ascendant"]
-        table_data.append({
-            "type": "طالع",
-            "name": "الطالع",
-            "degree": f"{ascendant['degree']:.2f}°",
-            "zodiac_sign": ascendant["zodiac_sign"]
-        })
-
+        # Return chart data
         return {
             "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
             "cusps": [house["degree"] for house in houses_and_ascendant["houses"]],
-            "ascendant": houses_and_ascendant["ascendant"],
-            "table_data": table_data
+            "ascendant": houses_and_ascendant["ascendant"]
         }
 
     except ValueError as e:
