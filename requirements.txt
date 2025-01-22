@@ -3,3 +3,4 @@ uvicorn
 pyswisseph
 requests
 pydantic
+pytz
