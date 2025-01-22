@@ -172,12 +172,44 @@ async def calculate_chart(details: BirthDetails):
         planets_chart = calculate_planetary_positions(julian_day)
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
         aspects = calculate_aspects(planets_chart)
-        planet_house_positions = assign_planets_to_houses(planets_chart, houses_and_ascendant["houses"])
+
+        # Generate table data
+        table_data = []
+
+        # Add planets to table
+        for planet in planets_chart:
+            table_data.append({
+                "type": "الكوكب",
+                "name": planet["name"],
+                "degree": f"{planet['position']:.2f}°",
+                "zodiac_sign": planet["zodiac_sign"]
+            })
+
+        # Add houses to table
+        for house in houses_and_ascendant["houses"]:
+            table_data.append({
+                "type": "بيت",
+                "name": f"بيت {house['house']}",
+                "degree": f"{house['degree']:.2f}°",
+                "zodiac_sign": house["zodiac_sign"]
+            })
+
+        # Add ascendant to table
+        ascendant = houses_and_ascendant["ascendant"]
+        table_data.append({
+            "type": "طالع",
+            "name": "الطالع",
+            "degree": f"{ascendant['degree']:.2f}°",
+            "zodiac_sign": ascendant["zodiac_sign"]
+        })
 
         return {
             "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
-            "cusps": [house["degree"] for house in houses_and_ascendant["houses"]]
+            "cusps": [house["degree"] for house in houses_and_ascendant["houses"]],
+            "aspects": aspects,
+            "table_data": table_data
         }
+
     except ValueError as e:
         logger.error(f"ValueError: {str(e)}")
         return {"error": str(e)}
