@@ -66,23 +66,18 @@ def get_coordinates(location):
     if data["results"]:
         lat = data["results"][0]["geometry"]["lat"]
         lon = data["results"][0]["geometry"]["lng"]
-        # Extract timezone if available
-        timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name", None)
-
-        if timezone is None:
-            raise ValueError("Timezone not found in geocoding data")
-
+        timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name")
+        if not timezone:
+            timezone = "UTC"  # Fallback to UTC
         return lat, lon, timezone
     else:
-        raise ValueError("Location not found")
+        raise ValueError("Location not found or invalid input")
 
 # Function to adjust for DST
 def adjust_for_dst(birth_datetime, timezone_name):
     try:
         tz = pytz.timezone(timezone_name)
-        # Localize the birth datetime
         localized_time = tz.localize(birth_datetime, is_dst=None)
-        # Extract UTC offset in hours (including DST if applicable)
         utc_offset = localized_time.utcoffset().total_seconds() / 3600.0
         logger.info(f"Localized Time: {localized_time}, UTC Offset: {utc_offset}")
         return localized_time, utc_offset
@@ -108,29 +103,9 @@ def calculate_planetary_positions(julian_day):
         })
     return planets
 
-# Function to calculate houses and Ascendant
-def calculate_houses_and_ascendant(julian_day, latitude, longitude):
-    houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
-    houses_data = []
-    for i in range(12):
-        houses_data.append({
-            "house": i + 1,
-            "degree": round(houses[i], 2),
-            "zodiac_sign": get_arabic_zodiac_sign(houses[i])
-        })
-    ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-    return {
-        "houses": houses_data,
-        "ascendant": {
-            "degree": round(ascendant[0], 2),
-            "zodiac_sign": ascendant_sign
-        }
-    }
-
 # FastAPI app
 app = FastAPI()
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://tsarinaha.github.io"],
@@ -139,52 +114,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Endpoint to calculate the natal chart
 @app.post("/calculate_chart/")
 async def calculate_chart(details: BirthDetails):
     try:
         logger.info(f"Received request: {details}")
 
-        # Parse birth date and time
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
-
-        # Get location coordinates and timezone
         latitude, longitude, timezone_name = get_coordinates(details.location)
-        logger.info(f"Location: {details.location}, Latitude: {latitude}, Longitude: {longitude}, Timezone: {timezone_name}")
 
-        # Adjust for DST
         localized_time, utc_offset = adjust_for_dst(birth_datetime, timezone_name)
-        logger.info(f"Localized Time: {localized_time}, UTC Offset: {utc_offset} hours")
 
-        # Calculate Julian Day
         julian_day = swe.julday(
             localized_time.year, localized_time.month, localized_time.day,
             localized_time.hour + localized_time.minute / 60.0
         )
-
-        # Calculate planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
 
-        # Calculate houses and Ascendant
-        houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
+        return {"planets": planets_chart}
 
-        # Return chart data
-        return {
-            "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
-            "cusps": [house["degree"] for house in houses_and_ascendant["houses"]],
-            "ascendant": houses_and_ascendant["ascendant"]
-        }
-
-    except ValueError as e:
-        logger.error(f"ValueError: {str(e)}")
-        return {"error": str(e)}
     except Exception as e:
-        logger.error(f"Unexpected Error: {str(e)}")
-        return {"error": "Internal Server Error", "details": str(e)}
-
-# Run the server if executed directly
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)), reload=True)
+        logger.error(f"Error: {e}")
+        return {"error": str(e)}
