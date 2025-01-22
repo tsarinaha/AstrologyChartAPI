@@ -161,22 +161,35 @@ app.add_middleware(
 async def calculate_chart(details: BirthDetails):
     try:
         logger.info(f"Received request: {details}")
+
+        # Parse birth date and time
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
+
+        # Get location coordinates and timezone
+        latitude, longitude, timezone_name = get_coordinates(details.location)
+        logger.info(f"Location: {details.location}, Latitude: {latitude}, Longitude: {longitude}, Timezone: {timezone_name}")
+
+        # Adjust for DST
+        localized_time, utc_offset = adjust_for_dst(birth_datetime, timezone_name)
+        logger.info(f"Localized Time: {localized_time}, UTC Offset: {utc_offset} hours")
+
+        # Calculate Julian Day
         julian_day = swe.julday(
-            birth_datetime.year, birth_datetime.month, birth_datetime.day,
-            birth_datetime.hour + birth_datetime.minute / 60.0
+            localized_time.year, localized_time.month, localized_time.day,
+            localized_time.hour + localized_time.minute / 60.0
         )
-        latitude, longitude = get_coordinates(details.location)
+
+        # Calculate planetary positions
         planets_chart = calculate_planetary_positions(julian_day)
+
+        # Calculate houses and Ascendant
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
-        aspects = calculate_aspects(planets_chart)
 
         # Generate table data
         table_data = []
 
-        # Add planets to table
         for planet in planets_chart:
             table_data.append({
                 "type": "الكوكب",
@@ -185,7 +198,6 @@ async def calculate_chart(details: BirthDetails):
                 "zodiac_sign": planet["zodiac_sign"]
             })
 
-        # Add houses to table
         for house in houses_and_ascendant["houses"]:
             table_data.append({
                 "type": "بيت",
@@ -194,7 +206,6 @@ async def calculate_chart(details: BirthDetails):
                 "zodiac_sign": house["zodiac_sign"]
             })
 
-        # Add ascendant to table
         ascendant = houses_and_ascendant["ascendant"]
         table_data.append({
             "type": "طالع",
@@ -206,7 +217,7 @@ async def calculate_chart(details: BirthDetails):
         return {
             "planets": [{"name": planet["name"], "longitude": planet["position"]} for planet in planets_chart],
             "cusps": [house["degree"] for house in houses_and_ascendant["houses"]],
-            "aspects": aspects,
+            "ascendant": houses_and_ascendant["ascendant"],
             "table_data": table_data
         }
 
