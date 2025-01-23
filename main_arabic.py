@@ -14,7 +14,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allow all headers
-
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
