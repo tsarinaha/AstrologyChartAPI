@@ -153,25 +153,36 @@ async def calculate_chart(details: BirthDetails):
     try:
         logger.info(f"Received request: {details}")
 
+        # Parse the birth details
         birth_datetime = datetime.strptime(
             f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
         )
         latitude, longitude, timezone_name = get_coordinates(details.location)
 
+        # Adjust for timezone and daylight saving time
         localized_time, utc_offset = adjust_for_dst(birth_datetime, timezone_name)
 
+        # Calculate Julian day
         julian_day = swe.julday(
             localized_time.year, localized_time.month, localized_time.day,
             localized_time.hour + localized_time.minute / 60.0
         )
+
+        # Calculate planets and houses
         planets_chart = calculate_planetary_positions(julian_day)
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
 
+        # Log the final data before returning
+        logger.info(f"Planets Data: {planets_chart}")
+        logger.info(f"Houses Data: {houses_and_ascendant['houses']}")
+        logger.info(f"Ascendant: {houses_and_ascendant['ascendant']}")
+
+        # Return the data
         return {
             "planets": planets_chart,
             "houses": houses_and_ascendant["houses"],
             "ascendant": houses_and_ascendant["ascendant"],
-            "cusps": houses_and_ascendant["cusps"]
+            "cusps": houses_and_ascendant["cusps"],
         }
 
     except Exception as e:
