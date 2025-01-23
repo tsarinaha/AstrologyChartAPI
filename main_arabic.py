@@ -8,6 +8,14 @@ from datetime import datetime, timedelta
 import pytz
 import logging
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://tsarinaha.github.io"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
