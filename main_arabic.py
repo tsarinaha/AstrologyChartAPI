@@ -104,7 +104,6 @@ def calculate_planetary_positions(julian_day):
     return planets
 
 # Function to calculate houses and Ascendant
-# Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     try:
         houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
@@ -170,7 +169,7 @@ async def calculate_chart(details: BirthDetails):
 
         return {
             "planets": planets_chart,
-            "houses": houses_and_ascendant["houses"],
+            "cusps": houses_and_ascendant["cusps"],
             "ascendant": houses_and_ascendant["ascendant"]
         }
 
