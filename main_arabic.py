@@ -10,11 +10,11 @@ import logging
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tsarinaha.github.io"],
+    allow_origins=["https://tsarinaha.github.io"],  # Explicitly allow your frontend origin
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
