@@ -97,24 +97,6 @@ def adjust_for_dst(birth_datetime, timezone_name):
         logger.error(f"Failed to adjust for DST: {e}")
         raise ValueError("Invalid timezone or location for DST adjustment")
 
-# Function to calculate planetary positions
-def calculate_planetary_positions(julian_day):
-    planets = []
-    for planet, arabic_name in PLANETS_ARABIC.items():
-        pos, ret_code = swe.calc_ut(julian_day, planet)
-        if ret_code < 0:
-            logger.error(f"Error calculating position for {arabic_name}")
-            planets.append({"name": arabic_name, "error": "Calculation error"})
-            continue
-        degree = pos[0]
-        zodiac_sign = get_arabic_zodiac_sign(degree)
-        planets.append({
-            "name": arabic_name,
-            "position": round(degree, 2),
-            "zodiac_sign": zodiac_sign
-        })
-    return planets
-
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     try:
@@ -123,16 +105,11 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             raise ValueError("Invalid number of cusps returned by swe.houses")
     except Exception as e:
         logger.error(f"Error calculating houses and ascendant: {e}")
-        # Fallback to evenly spaced cusps (30° apart)
-        houses = [i * 30 for i in range(12)]
-        ascendant = [houses[0]]
+        raise
 
-    # Ensure exactly 12 cusp values
-    if len(houses) < 12:
-        houses = (houses + [360])[:12]  # Pad missing cusps
-
-    logger.info(f"Calculated Cusps: {houses}")  # Debug log for cusps
-    logger.info(f"Calculated Ascendant: {ascendant[0]}")  # Debug log for ascendant
+    # Debugging logs
+    logger.info(f"Houses (Cusps): {houses}")
+    logger.info(f"Ascendant: {ascendant}")
 
     houses_data = []
     for i in range(12):
@@ -141,7 +118,6 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "degree": round(houses[i], 2),
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
-
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
     return {
         "houses": houses_data,
