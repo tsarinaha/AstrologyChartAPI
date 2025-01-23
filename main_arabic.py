@@ -127,7 +127,13 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
         houses = [i * 30 for i in range(12)]
         ascendant = [houses[0]]
 
-    # Ensure there are exactly 12 cusp values
+    # Ensure exactly 12 cusp values
+    if len(houses) < 12:
+        houses = (houses + [360])[:12]  # Pad missing cusps
+
+    logger.info(f"Calculated Cusps: {houses}")  # Debug log for cusps
+    logger.info(f"Calculated Ascendant: {ascendant[0]}")  # Debug log for ascendant
+
     houses_data = []
     for i in range(12):
         houses_data.append({
@@ -135,6 +141,7 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "degree": round(houses[i], 2),
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
+
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
     return {
         "houses": houses_data,
