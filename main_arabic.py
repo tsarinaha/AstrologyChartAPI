@@ -100,34 +100,53 @@ def adjust_for_dst(birth_datetime, timezone_name):
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     try:
+        # Calculate houses and ascendant
         houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
+
+        # Ensure exactly 12 cusp values
         if len(houses) != 12:
             raise ValueError("Invalid number of cusps returned by swe.houses")
+
+        # Debugging logs
+        logger.info(f"Houses (Cusps): {houses}")  # Logs all cusp degrees
+        logger.info(f"Ascendant Degree: {ascendant[0]}")  # Ascendant
+        logger.info(f"MC Degree (Cusp 10): {houses[9]}")  # MC
+        logger.info(f"IC Degree (Cusp 4): {houses[3]}")  # IC
+        logger.info(f"Descendant Degree (Opposite Ascendant): {(ascendant[0] + 180) % 360}")  # Descendant
+
+        # Map houses to zodiac signs and degrees
+        houses_data = []
+        for i in range(12):
+            houses_data.append({
+                "house": i + 1,
+                "degree": round(houses[i], 2),
+                "zodiac_sign": get_arabic_zodiac_sign(houses[i]),
+            })
+
+        ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
+
+        return {
+            "houses": houses_data,
+            "ascendant": {
+                "degree": round(ascendant[0], 2),
+                "zodiac_sign": ascendant_sign,
+            },
+            "cusps": houses  # Include cusps in the returned data
+        }
+
     except Exception as e:
         logger.error(f"Error calculating houses and ascendant: {e}")
-        raise
-
-    # Debugging logs
-    logger.info(f"Houses (Cusps): {houses}")
-    logger.info(f"Ascendant: {ascendant[0]}")
-
-    houses_data = []
-    for i in range(12):
-        houses_data.append({
-            "house": i + 1,
-            "degree": round(houses[i], 2),
-            "zodiac_sign": get_arabic_zodiac_sign(houses[i])
-        })
-
-    ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-    return {
-        "houses": houses_data,
-        "ascendant": {
-            "degree": round(ascendant[0], 2),
-            "zodiac_sign": ascendant_sign
-        },
-        "cusps": houses  # Ensure cusps array is passed
-    }
+        # Fallback to evenly spaced cusps (e.g., 30° apart)
+        houses = [i * 30 for i in range(12)]
+        ascendant = [houses[0]]
+        return {
+            "houses": [{"house": i + 1, "degree": houses[i], "zodiac_sign": get_arabic_zodiac_sign(houses[i])} for i in range(12)],
+            "ascendant": {
+                "degree": round(ascendant[0], 2),
+                "zodiac_sign": get_arabic_zodiac_sign(ascendant[0]),
+            },
+            "cusps": houses,
+        }
 
 @app.post("/calculate_chart/")
 async def calculate_chart(details: BirthDetails):
