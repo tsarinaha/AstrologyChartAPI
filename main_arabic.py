@@ -14,10 +14,10 @@ app = FastAPI()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://tsarinaha.github.io"],  # Explicitly allow your frontend origin
+    allow_origins=["https://tsarinaha.github.io"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Set up logging
@@ -68,7 +68,7 @@ def get_coordinates(location):
         "https://api.opencagedata.com/geocode/v1/json",
         params={
             "q": location,
-            "language": "ar",  # Arabic language support
+            "language": "ar",
             "key": OPENCAGE_API_KEY
         }
     )
@@ -80,7 +80,7 @@ def get_coordinates(location):
         lon = data["results"][0]["geometry"]["lng"]
         timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name")
         if not timezone:
-            timezone = "UTC"  # Fallback to UTC
+            timezone = "UTC"
         return lat, lon, timezone
     else:
         raise ValueError("Location not found or invalid input")
@@ -109,7 +109,7 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
 
     # Debugging logs
     logger.info(f"Houses (Cusps): {houses}")
-    logger.info(f"Ascendant: {ascendant}")
+    logger.info(f"Ascendant: {ascendant[0]}")
 
     houses_data = []
     for i in range(12):
@@ -118,6 +118,7 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "degree": round(houses[i], 2),
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
+
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
     return {
         "houses": houses_data,
@@ -125,7 +126,7 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "degree": round(ascendant[0], 2),
             "zodiac_sign": ascendant_sign
         },
-        "cusps": houses  # Ensure the cusps array is passed back
+        "cusps": houses  # Ensure cusps array is passed
     }
 
 @app.post("/calculate_chart/")
@@ -150,7 +151,8 @@ async def calculate_chart(details: BirthDetails):
         return {
             "planets": planets_chart,
             "houses": houses_and_ascendant["houses"],
-            "ascendant": houses_and_ascendant["ascendant"]
+            "ascendant": houses_and_ascendant["ascendant"],
+            "cusps": houses_and_ascendant["cusps"]
         }
 
     except Exception as e:
