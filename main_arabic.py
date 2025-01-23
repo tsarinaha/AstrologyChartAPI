@@ -8,6 +8,10 @@ from datetime import datetime, timedelta
 import pytz
 import logging
 
+# Initialize FastAPI app
+app = FastAPI()
+
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://tsarinaha.github.io"],  # Explicitly allow your frontend origin
@@ -140,17 +144,6 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
         },
         "cusps": houses  # Ensure the cusps array is passed back
     }
-
-# FastAPI app
-app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://tsarinaha.github.io"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.post("/calculate_chart/")
 async def calculate_chart(details: BirthDetails):
