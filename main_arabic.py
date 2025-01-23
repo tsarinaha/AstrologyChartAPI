@@ -104,6 +104,7 @@ def calculate_planetary_positions(julian_day):
     return planets
 
 # Function to calculate houses and Ascendant
+# Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     try:
         houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
@@ -111,8 +112,13 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             raise ValueError("Invalid number of cusps returned by swe.houses")
     except Exception as e:
         logger.error(f"Error calculating houses and ascendant: {e}")
+        # Fallback to evenly spaced cusps (30° apart)
         houses = [i * 30 for i in range(12)]
         ascendant = [houses[0]]
+
+    # Ensure there are exactly 12 cusp values
+    if len(houses) < 12:
+        houses = (houses + [360])[:12]
 
     houses_data = []
     for i in range(12):
@@ -122,13 +128,14 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-    logger.info(f"Cusps: {houses}")
+    logger.info(f"Cusps: {houses}")  # Log for debugging
     return {
         "houses": houses_data,
         "ascendant": {
             "degree": round(ascendant[0], 2),
             "zodiac_sign": ascendant_sign
-        }
+        },
+        "cusps": houses  # Ensure the cusps array is passed back
     }
 
 # FastAPI app
