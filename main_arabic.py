@@ -116,9 +116,6 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
         ascendant = [houses[0]]
 
     # Ensure there are exactly 12 cusp values
-    if len(houses) < 12:
-        houses = (houses + [360])[:12]
-
     houses_data = []
     for i in range(12):
         houses_data.append({
@@ -127,7 +124,6 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             "zodiac_sign": get_arabic_zodiac_sign(houses[i])
         })
     ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-    logger.info(f"Cusps: {houses}")  # Log for debugging
     return {
         "houses": houses_data,
         "ascendant": {
@@ -169,7 +165,7 @@ async def calculate_chart(details: BirthDetails):
 
         return {
             "planets": planets_chart,
-            "cusps": houses_and_ascendant["cusps"],
+            "houses": houses_and_ascendant["houses"],
             "ascendant": houses_and_ascendant["ascendant"]
         }
 
