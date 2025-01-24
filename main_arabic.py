@@ -97,6 +97,24 @@ def adjust_for_dst(birth_datetime, timezone_name):
         logger.error(f"Failed to adjust for DST: {e}")
         raise ValueError("Invalid timezone or location for DST adjustment")
 
+# Function to calculate planetary positions
+def calculate_planetary_positions(julian_day):
+    planets = []
+    for planet, arabic_name in PLANETS_ARABIC.items():
+        pos, ret_code = swe.calc_ut(julian_day, planet)
+        if ret_code < 0:
+            logger.error(f"Error calculating position for {arabic_name}")
+            planets.append({"name": arabic_name, "error": "Calculation error"})
+            continue
+        degree = pos[0]
+        zodiac_sign = get_arabic_zodiac_sign(degree)
+        planets.append({
+            "name": arabic_name,
+            "position": round(degree, 2),
+            "zodiac_sign": zodiac_sign
+        })
+    return planets
+
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     try:
@@ -108,11 +126,11 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
             raise ValueError("Invalid number of cusps returned by swe.houses")
 
         # Debugging logs
-        logger.info(f"Houses (Cusps): {houses}")  # Logs all cusp degrees
-        logger.info(f"Ascendant Degree: {ascendant[0]}")  # Ascendant
-        logger.info(f"MC Degree (Cusp 10): {houses[9]}")  # MC
-        logger.info(f"IC Degree (Cusp 4): {houses[3]}")  # IC
-        logger.info(f"Descendant Degree (Opposite Ascendant): {(ascendant[0] + 180) % 360}")  # Descendant
+        logger.info(f"Houses (Cusps): {houses}")
+        logger.info(f"Ascendant Degree: {ascendant[0]}")
+        logger.info(f"MC Degree (Cusp 10): {houses[9]}")
+        logger.info(f"IC Degree (Cusp 4): {houses[3]}")
+        logger.info(f"Descendant Degree (Opposite Ascendant): {(ascendant[0] + 180) % 360}")
 
         # Map houses to zodiac signs and degrees
         houses_data = []
@@ -131,12 +149,11 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
                 "degree": round(ascendant[0], 2),
                 "zodiac_sign": ascendant_sign,
             },
-            "cusps": houses  # Include cusps in the returned data
+            "cusps": houses
         }
 
     except Exception as e:
         logger.error(f"Error calculating houses and ascendant: {e}")
-        # Fallback to evenly spaced cusps (e.g., 30° apart)
         houses = [i * 30 for i in range(12)]
         ascendant = [houses[0]]
         return {
@@ -172,12 +189,6 @@ async def calculate_chart(details: BirthDetails):
         planets_chart = calculate_planetary_positions(julian_day)
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
 
-        # Log the final data before returning
-        logger.info(f"Planets Data: {planets_chart}")
-        logger.info(f"Houses Data: {houses_and_ascendant['houses']}")
-        logger.info(f"Ascendant: {houses_and_ascendant['ascendant']}")
-
-        # Return the data
         return {
             "planets": planets_chart,
             "houses": houses_and_ascendant["houses"],
