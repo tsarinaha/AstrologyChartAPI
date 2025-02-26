@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import swisseph as swe
 import requests
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 import logging
 
@@ -78,9 +78,7 @@ def get_coordinates(location):
     if data["results"]:
         lat = data["results"][0]["geometry"]["lat"]
         lon = data["results"][0]["geometry"]["lng"]
-        timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name")
-        if not timezone:
-            timezone = "UTC"
+        timezone = data["results"][0].get("annotations", {}).get("timezone", {}).get("name", "UTC")
         return lat, lon, timezone
     else:
         raise ValueError("Location not found or invalid input")
@@ -89,10 +87,13 @@ def get_coordinates(location):
 def adjust_for_dst(birth_datetime, timezone_name):
     try:
         tz = pytz.timezone(timezone_name)
-        localized_time = tz.localize(birth_datetime, is_dst=None)
-        utc_offset = localized_time.utcoffset().total_seconds() / 3600.0
-        logger.info(f"Localized Time: {localized_time}, UTC Offset: {utc_offset}")
-        return localized_time, utc_offset
+        localized_time = tz.localize(birth_datetime)  # Auto-detects DST
+        utc_time = localized_time.astimezone(pytz.utc)  # Convert to UTC
+        utc_offset = localized_time.utcoffset().total_seconds() / 3600.0  # Offset in hours
+        
+        logger.info(f"Birth Time: {birth_datetime} | Localized: {localized_time} | UTC: {utc_time} | UTC Offset: {utc_offset}")
+        
+        return utc_time, utc_offset
     except Exception as e:
         logger.error(f"Failed to adjust for DST: {e}")
         raise ValueError("Invalid timezone or location for DST adjustment")
@@ -117,85 +118,38 @@ def calculate_planetary_positions(julian_day):
 
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
-    try:
-        # Calculate houses and ascendant
-        houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
-
-        # Ensure exactly 12 cusp values
-        if len(houses) != 12:
-            raise ValueError("Invalid number of cusps returned by swe.houses")
-
-        # Debugging logs
-        logger.info(f"Houses (Cusps): {houses}")
-        logger.info(f"Ascendant Degree: {ascendant[0]}")
-        logger.info(f"MC Degree (Cusp 10): {houses[9]}")
-        logger.info(f"IC Degree (Cusp 4): {houses[3]}")
-        logger.info(f"Descendant Degree (Opposite Ascendant): {(ascendant[0] + 180) % 360}")
-
-        # Map houses to zodiac signs and degrees
-        houses_data = []
-        for i in range(12):
-            houses_data.append({
-                "house": i + 1,
-                "degree": round(houses[i], 2),
-                "zodiac_sign": get_arabic_zodiac_sign(houses[i]),
-            })
-
-        ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
-
-        return {
-            "houses": houses_data,
-            "ascendant": {
-                "degree": round(ascendant[0], 2),
-                "zodiac_sign": ascendant_sign,
-            },
-            "cusps": houses
-        }
-
-    except Exception as e:
-        logger.error(f"Error calculating houses and ascendant: {e}")
-        houses = [i * 30 for i in range(12)]
-        ascendant = [houses[0]]
-        return {
-            "houses": [{"house": i + 1, "degree": houses[i], "zodiac_sign": get_arabic_zodiac_sign(houses[i])} for i in range(12)],
-            "ascendant": {
-                "degree": round(ascendant[0], 2),
-                "zodiac_sign": get_arabic_zodiac_sign(ascendant[0]),
-            },
-            "cusps": houses,
-        }
+    houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
+    ascendant_sign = get_arabic_zodiac_sign(ascendant[0])
+    ascendant_distinct = ascendant[0] % 30  # Calculate distinct ascendant degree
+    return {
+        "houses": [{"house": i + 1, "degree": round(houses[i], 2), "zodiac_sign": get_arabic_zodiac_sign(houses[i])} for i in range(12)],
+        "ascendant": {"degree": round(ascendant[0], 2), "zodiac_sign": ascendant_sign, "distinct_degree": round(ascendant_distinct, 2)},
+        "cusps": houses,
+    }
 
 @app.post("/calculate_chart/")
 async def calculate_chart(details: BirthDetails):
     try:
         logger.info(f"Received request: {details}")
-
-        # Parse the birth details
-        birth_datetime = datetime.strptime(
-            f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M"
-        )
+        birth_datetime = datetime.strptime(f"{details.birth_date} {details.birth_time}", "%Y-%m-%d %H:%M")
         latitude, longitude, timezone_name = get_coordinates(details.location)
-
-        # Adjust for timezone and daylight saving time
-        localized_time, utc_offset = adjust_for_dst(birth_datetime, timezone_name)
-
-        # Calculate Julian day
-        julian_day = swe.julday(
-            localized_time.year, localized_time.month, localized_time.day,
-            localized_time.hour + localized_time.minute / 60.0
-        )
-
+        
+        # Adjust for DST and convert to UTC
+        utc_time, utc_offset = adjust_for_dst(birth_datetime, timezone_name)
+        
+        # Compute Julian Day using UTC time
+        julian_day = swe.julday(utc_time.year, utc_time.month, utc_time.day, utc_time.hour + utc_time.minute / 60.0 + utc_time.second / 3600.0)
+        
         # Calculate planets and houses
         planets_chart = calculate_planetary_positions(julian_day)
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
-
+        
         return {
             "planets": planets_chart,
             "houses": houses_and_ascendant["houses"],
             "ascendant": houses_and_ascendant["ascendant"],
             "cusps": houses_and_ascendant["cusps"],
         }
-
     except Exception as e:
         logger.error(f"Error: {e}")
         return {"error": str(e)}
