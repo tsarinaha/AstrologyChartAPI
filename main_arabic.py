@@ -98,24 +98,6 @@ def adjust_for_dst(birth_datetime, timezone_name):
         logger.error(f"Failed to adjust for DST: {e}")
         raise ValueError("Invalid timezone or location for DST adjustment")
 
-# Function to calculate planetary positions
-def calculate_planetary_positions(julian_day):
-    planets = []
-    for planet, arabic_name in PLANETS_ARABIC.items():
-        pos, ret_code = swe.calc_ut(julian_day, planet)
-        if ret_code < 0:
-            logger.error(f"Error calculating position for {arabic_name}")
-            planets.append({"name": arabic_name, "error": "Calculation error"})
-            continue
-        degree = pos[0]
-        zodiac_sign = get_arabic_zodiac_sign(degree)
-        planets.append({
-            "name": arabic_name,
-            "position": round(degree, 2),
-            "zodiac_sign": zodiac_sign
-        })
-    return planets
-
 # Function to calculate houses and Ascendant
 def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     houses, ascendant = swe.houses(julian_day, latitude, longitude, b'P')
@@ -123,7 +105,12 @@ def calculate_houses_and_ascendant(julian_day, latitude, longitude):
     ascendant_distinct = ascendant[0] % 30  # Calculate distinct ascendant degree
     return {
         "houses": [{"house": i + 1, "degree": round(houses[i], 2), "zodiac_sign": get_arabic_zodiac_sign(houses[i])} for i in range(12)],
-        "ascendant": {"degree": round(ascendant[0], 2), "zodiac_sign": ascendant_sign, "distinct_degree": round(ascendant_distinct, 2)},
+        "ascendant": {
+            "degree": round(ascendant[0], 2),
+            "distinct_degree": round(ascendant_distinct, 2),
+            "zodiac_sign": ascendant_sign,
+            "text": f"برجك الطالع هو {ascendant_sign} ({round(ascendant_distinct, 2)}°)"
+        },
         "cusps": houses,
     }
 
@@ -141,11 +128,9 @@ async def calculate_chart(details: BirthDetails):
         julian_day = swe.julday(utc_time.year, utc_time.month, utc_time.day, utc_time.hour + utc_time.minute / 60.0 + utc_time.second / 3600.0)
         
         # Calculate planets and houses
-        planets_chart = calculate_planetary_positions(julian_day)
         houses_and_ascendant = calculate_houses_and_ascendant(julian_day, latitude, longitude)
         
         return {
-            "planets": planets_chart,
             "houses": houses_and_ascendant["houses"],
             "ascendant": houses_and_ascendant["ascendant"],
             "cusps": houses_and_ascendant["cusps"],
